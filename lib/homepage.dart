@@ -2,10 +2,10 @@
 
 import 'dart:async';
 
-import 'package:bubble_trouble/ball.dart';
-import 'package:bubble_trouble/button.dart';
-import 'package:bubble_trouble/missile.dart';
-import 'package:bubble_trouble/player.dart';
+import 'package:cloudbubble/ball.dart';
+import 'package:cloudbubble/button.dart';
+import 'package:cloudbubble/missile.dart';
+import 'package:cloudbubble/player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

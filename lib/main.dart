@@ -1,115 +1,207 @@
+// ignore_for_file: prefer_const_constructors
+
+import 'dart:async';
+
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _HomePageState createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+enum direction { LEFT, RIGHT }
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+class _HomePageState extends State<HomePage> {
+  //player variables
+  static double playerX = 0;
+
+  //missile variables
+  double missileX = playerX;
+  double missileHeight = 10;
+  bool midShot = false;
+
+  //ball variables
+  double ballX = 0.5;
+  double ballY = 1;
+  var ballDirection = direction.LEFT;
+
+  void startGame() {
+    double time = 0;
+    double height = 0;
+    double velocity = 60; // how strong the jump is
+
+    Timer.periodic(Duration(milliseconds: 10), (timer) {
+      height = -5 * time * time + velocity * time;
+
+      //if the ball reaches the ground, reset the jump
+      if (height < 0) {
+        time = 0;
+      }
+
+      setState(() {
+        ballY = heightToPosition(height);
+      });
+
+      if (ballX - 0.02 < -1) {
+        ballDirection = direction.RIGHT;
+      } else if (ballX + 0.02 > 1) {
+        ballDirection = direction.LEFT;
+      }
+
+      if (ballDirection == direction.LEFT) {
+        setState(() {
+          ballX -= 0.005;
+        });
+      } else if (ballDirection == direction.RIGHT) {
+        setState(() {
+          ballX += 0.005;
+        });
+      }
+
+      //check if ball hits the player
+      if (playerDies()) {
+        timer.cancel();
+        _showDialog();
+      }
+      //keep the time going
+      time += 0.1;
     });
   }
 
+  void _showDialog() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[700],
+            title: Text("You dead bro",
+                style : TextStyle(color: Colors.white)),
+          );
+        });
+  }
+
+  void moveLeft() {
+    setState(() {
+      if (playerX - 0.1 < -1) {
+        //do nothing
+      } else {
+        playerX -= 0.1;
+      }
+      if (!midShot) {
+        missileX = playerX;
+      }
+    });
+  }
+
+  void moveRight() {
+    setState(() {
+      if (playerX + 0.1 > 1) {
+      } else {
+        playerX += 0.1;
+      }
+      missileX = playerX;
+    });
+  }
+
+  void fireMissile() {
+    if (midShot == false) {
+      Timer.periodic(Duration(milliseconds: 20), (timer) {
+        //shots fired
+        midShot = true;
+
+        //missile grows til it hits the top of the screen
+        setState(() {
+          missileHeight += 10;
+        });
+
+        //stop missile when it reaches top of screen
+        if (missileHeight > MediaQuery.of(context).size.height * 3 / 4) {
+          resetMissile();
+          timer.cancel();
+        }
+
+        //check is missile has hit the ball
+        if (ballY > heightToPosition(missileHeight) &&
+            (ballX - missileX).abs() < 0.03) {
+          resetMissile();
+          ballX = 5;
+          timer.cancel();
+        }
+      });
+    }
+  }
+
+  double heightToPosition(double height) {
+    double totalHeight = MediaQuery.of(context).size.height * 3 / 4;
+    double position = 1 - 2 * height / totalHeight;
+    return position;
+  }
+
+  void resetMissile() {
+    missileX = playerX;
+    missileHeight = 0;
+    midShot = false;
+  }
+
+  bool playerDies() {
+    //if the ball position and player position
+    //are the same, then player dies
+    if ((ballX - playerX).abs() < 0.05 && ballY > 0.95) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+    return RawKeyboardListener(
+      focusNode: FocusNode(),
+      autofocus: true,
+      onKey: (event) {
+        if (event.isKeyPressed(LogicalKeyboardKey.arrowLeft)) {
+          moveLeft();
+        } else if (event.isKeyPressed(LogicalKeyboardKey.arrowRight)) {
+          moveRight();
+        }
+      },
+      child: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Container(
+              color: Colors.pink[100],
+              child: Center(
+                child: Stack(
+                  children: [
+                    MyBall(ballX: ballX, ballY: ballY),
+                    MyMissile(height: missileHeight, missileX: missileX),
+                    MyPlayer(playerX: playerX),
+                  ],
+                ),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+          ),
+          Expanded(
+            child: Container(
+              color: Colors.grey,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  MyButton(icon: Icons.play_arrow, function: startGame),
+                  MyButton(icon: Icons.arrow_back, function: moveLeft),
+                  MyButton(icon: Icons.arrow_upward, function: fireMissile),
+                  MyButton(icon: Icons.arrow_forward, function: moveRight),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
